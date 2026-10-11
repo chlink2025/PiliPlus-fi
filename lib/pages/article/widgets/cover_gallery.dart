@@ -163,6 +163,7 @@ class _ArticleCoverGalleryState extends State<ArticleCoverGallery> {
                       CachedNetworkImage(
                         height: height,
                         width: widget.maxWidth,
+                        gaplessPlayback: true,
                         memCacheWidth: memCacheWidth,
                         memCacheHeight: memCacheHeight,
                         fit: pic.isLongPic == true ? BoxFit.cover : null,

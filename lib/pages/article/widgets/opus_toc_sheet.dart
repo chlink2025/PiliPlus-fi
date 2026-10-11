@@ -12,6 +12,7 @@ Future<void> showOpusTocSheet(
   BuildContext context,
   ArticleController controller, {
   bool initialCollection = false,
+  VoidCallback? onBeforeJump,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -21,6 +22,7 @@ Future<void> showOpusTocSheet(
     builder: (_) => _OpusTocSheet(
       controller: controller,
       initialCollection: initialCollection,
+      onBeforeJump: onBeforeJump,
     ),
   );
 }
@@ -31,10 +33,12 @@ class _OpusTocSheet extends StatefulWidget {
   const _OpusTocSheet({
     required this.controller,
     required this.initialCollection,
+    this.onBeforeJump,
   });
 
   final ArticleController controller;
   final bool initialCollection;
+  final VoidCallback? onBeforeJump;
 
   @override
   State<_OpusTocSheet> createState() => _OpusTocSheetState();
@@ -137,6 +141,7 @@ class _OpusTocSheetState extends State<_OpusTocSheet>
           ),
           onTap: () {
             Navigator.of(context).pop();
+            widget.onBeforeJump?.call();
             widget.controller.jumpToToc(item.anchorIndex);
           },
         );
