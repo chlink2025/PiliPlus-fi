@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:PiliPlus/common/assets.dart';
+import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/dialog/simple_dialog_option.dart';
 import 'package:PiliPlus/common/widgets/emote_tooltip.dart';
 import 'package:PiliPlus/common/widgets/gesture/tap_gesture_recognizer.dart';
@@ -13,6 +14,7 @@ import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/models/dynamics/article_content_model.dart'
     show ArticleContentModel, Rich, Style, Word, Node;
 import 'package:PiliPlus/models/dynamics/result.dart';
+import 'package:PiliPlus/pages/article/widgets/sliver_list_ext.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/vote.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -38,6 +40,7 @@ class OpusContent extends StatelessWidget {
   final double maxWidth;
   final String opusId;
   final ListController listController;
+  final bool reverse;
 
   const OpusContent({
     super.key,
@@ -46,6 +49,7 @@ class OpusContent extends StatelessWidget {
     required this.maxWidth,
     required this.opusId,
     required this.listController,
+    required this.reverse,
   });
 
   static InlineSpan _node2Widget({
@@ -213,172 +217,260 @@ class OpusContent extends StatelessWidget {
     Widget Function(BuildContext, int) itemBuilder = (context, index) {
       final element = opus[index];
       try {
-          switch (element.paraType) {
-            case 1 || 4:
-              final isQuote = element.paraType == 4;
-              Widget widget = Text.rich(
-                textAlign: element.align == 1 ? TextAlign.center : null,
-                TextSpan(
-                  children: element.text?.nodes
-                      ?.map(
-                        (item) => _node2Widget(
-                          item: item,
-                          opusId: opusId,
-                          colorScheme: colorScheme,
-                          surfaceLuminance: getSurfaceLuminance,
-                        ),
-                      )
-                      .toList(),
-                ),
-              );
-              if (isQuote) {
-                widget = Container(
-                  padding: const .only(left: 8, top: 4, right: 4, bottom: 4),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      left: BorderSide(
-                        color: colorScheme.outlineVariant,
-                        width: 4,
-                      ),
+        switch (element.paraType) {
+          case 1 || 4:
+            final isQuote = element.paraType == 4;
+            List<InlineSpan>? spans;
+            if (element.text?.nodes case final nodes?) {
+              spans = nodes
+                  .map(
+                    (item) => _node2Widget(
+                      item: item,
+                      opusId: opusId,
+                      colorScheme: colorScheme,
+                      surfaceLuminance: getSurfaceLuminance,
                     ),
-                    borderRadius: const BorderRadius.all(Radius.circular(6)),
-                    color: colorScheme.onInverseSurface,
+                  )
+                  .toList();
+            } else if (element.blockquote?.children case final children?) {
+              spans = [
+                for (final child in children)
+                  ...?child.text?.nodes?.map(
+                    (item) => _node2Widget(
+                      item: item,
+                      opusId: opusId,
+                      colorScheme: colorScheme,
+                      surfaceLuminance: getSurfaceLuminance,
+                    ),
                   ),
-                  child: widget,
-                );
-              }
-              return widget;
-            case 2 when (element.pic != null):
-              final pics = element.pic!.pics!;
-              if (pics.length == 1) {
-                final pic = pics.first;
-                double? width = pic.width == null
-                    ? null
-                    : math.min(maxWidth, pic.width!);
-                final height = width == null || pic.height == null
-                    ? null
-                    : width * pic.height! / pic.width!;
-                width ??= maxWidth;
-                Widget child = CachedNetworkImage(
-                  width: width,
-                  height: height,
-                  gaplessPlayback: true,
-                  memCacheWidth: width.cacheSize(context),
-                  imageUrl: ImageUtils.thumbnailUrl(pic.url!, 60),
-                  fadeInDuration: const Duration(milliseconds: 120),
-                  fadeOutDuration: const Duration(milliseconds: 120),
-                  placeholder: (_, _) => Image.asset(Assets.loading),
-                );
-                if (!(pic.isLongPic ?? false)) {
-                  child = fromHero(
-                    tag: '${pic.url!}$hashCode',
-                    child: child,
-                  );
-                }
-                final images = this.images();
-                return GestureDetector(
-                  onTap: () => PageUtils.imageView(
-                    imgList: images,
-                    initialPage: images.indexWhere((e) => e.url == pic.url),
-                    quality: 60,
-                    tag: hashCode.toString(),
+              ];
+            }
+            Widget widget = Text.rich(
+              textAlign: element.align == 1 ? TextAlign.center : null,
+              TextSpan(children: spans),
+            );
+            if (isQuote) {
+              widget = Container(
+                padding: const .only(left: 8, top: 4, right: 4, bottom: 4),
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(
+                      color: colorScheme.outlineVariant,
+                      width: 4,
+                    ),
                   ),
+                  borderRadius: const BorderRadius.all(Radius.circular(6)),
+                  color: colorScheme.onInverseSurface,
+                ),
+                child: widget,
+              );
+            }
+            return widget;
+          case 2 when (element.pic != null):
+            final pics = element.pic!.pics!;
+            if (pics.length == 1) {
+              final pic = pics.first;
+              double? width = pic.width == null
+                  ? null
+                  : math.min(maxWidth, pic.width!);
+              final height = width == null || pic.height == null
+                  ? null
+                  : width * pic.height! / pic.width!;
+              width ??= maxWidth;
+              Widget child = CachedNetworkImage(
+                width: width,
+                height: height,
+                gaplessPlayback: true,
+                memCacheWidth: width.cacheSize(context),
+                imageUrl: ImageUtils.thumbnailUrl(pic.url!, 60),
+                fadeInDuration: const Duration(milliseconds: 120),
+                fadeOutDuration: const Duration(milliseconds: 120),
+                placeholder: (_, _) => Image.asset(Assets.loading),
+              );
+              if (!(pic.isLongPic ?? false)) {
+                child = fromHero(
+                  tag: '${pic.url!}$hashCode',
                   child: child,
                 );
-              } else {
-                return ImageGridView(
-                  picArr: pics
-                      .map(
-                        (e) => ImageModel(
-                          width: e.width,
-                          height: e.height,
-                          url: e.url!,
-                        ),
-                      )
-                      .toList(),
-                );
               }
-            case 3:
-              if (element.line?.pic case final pic?) {
-                final height = pic.height?.toDouble();
-                return CachedNetworkImage(
-                  fit: .contain,
-                  height: height,
-                  width: maxWidth,
-                  gaplessPlayback: true,
-                  memCacheWidth: maxWidth.cacheSize(context),
-                  imageUrl: ImageUtils.thumbnailUrl(pic.url!),
-                  placeholder: (_, _) => const SizedBox.shrink(),
-                );
-              } else {
-                return const Divider();
-              }
-            case 5 when (element.list?.items?.isNotEmpty == true):
-              return Text.rich(
-                TextSpan(
-                  children: element.list!.items!.mapIndexed((i, entry) {
-                    return TextSpan(
-                      children: [
-                        const WidgetSpan(
-                          child: Icon(MdiIcons.circleMedium),
-                          alignment: .middle,
-                        ),
-                        ...entry.nodes!.map((item) {
-                          if (item.word != null) {
-                            return _getSpan(
-                              item.word,
-                              surfaceLuminance: getSurfaceLuminance,
-                            );
-                          }
-                          if (item.rich case Rich(
-                            :final text,
-                            :final jumpUrl,
-                          )) {
-                            final hasUrl =
-                                jumpUrl != null && jumpUrl.isNotEmpty;
-                            return TextSpan(
-                              text: '${hasUrl ? '\u{1F517}' : ''}$text',
-                              recognizer: hasUrl
-                                  ? (NoDeadlineTapGestureRecognizer()
-                                      ..onTap = () =>
-                                          PiliScheme.routePushFromUrl(jumpUrl))
-                                  : null,
-                              style: hasUrl
-                                  ? TextStyle(color: colorScheme.primary)
-                                  : null,
-                            );
-                          }
-                          return const TextSpan();
-                        }),
-                        if (i < element.list!.items!.length - 1)
-                          const TextSpan(text: '\n'),
-                      ],
-                    );
-                  }).toList(),
+              final images = this.images();
+              return GestureDetector(
+                onTap: () => PageUtils.imageView(
+                  imgList: images,
+                  initialPage: images.indexWhere((e) => e.url == pic.url),
+                  quality: 60,
+                  tag: hashCode.toString(),
                 ),
+                child: child,
               );
-            case 6:
-              final type = element.linkCard!.card!.type;
-              Widget child;
-              switch (type) {
-                case 'LINK_CARD_TYPE_UGC':
-                  final ugc = element.linkCard!.card!.ugc!;
-                  child = Row(
-                    spacing: 10,
-                    children: [
-                      NetworkImgLayer(
-                        width: 104,
-                        height: 65,
-                        src: ugc.cover,
-                        borderRadius: const .all(.circular(6)),
+            } else {
+              return ImageGridView(
+                picArr: pics
+                    .map(
+                      (e) => ImageModel(
+                        width: e.width,
+                        height: e.height,
+                        url: e.url!,
                       ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: .start,
-                          children: [
-                            Text(ugc.title!),
+                    )
+                    .toList(),
+              );
+            }
+          case 3:
+            if (element.line?.pic case final pic?) {
+              final height = pic.height?.toDouble();
+              return CachedNetworkImage(
+                fit: .contain,
+                height: height,
+                width: maxWidth,
+                gaplessPlayback: true,
+                memCacheWidth: maxWidth.cacheSize(context),
+                imageUrl: ImageUtils.thumbnailUrl(pic.url!),
+                placeholder: (_, _) => const SizedBox.shrink(),
+              );
+            } else {
+              return const Divider();
+            }
+          case 5 when (element.list?.children?.isNotEmpty == true):
+            return Text.rich(
+              TextSpan(
+                children: element.list!.children!.mapIndexed((i, e) {
+                  return TextSpan(
+                    children: [
+                      const WidgetSpan(
+                        child: Icon(MdiIcons.circleMedium),
+                        alignment: .middle,
+                      ),
+                      ...?e.children?.map((child) {
+                        return TextSpan(
+                          children: child.text?.nodes
+                              ?.map(
+                                (item) => _node2Widget(
+                                  item: item,
+                                  opusId: opusId,
+                                  colorScheme: colorScheme,
+                                  surfaceLuminance: getSurfaceLuminance,
+                                ),
+                              )
+                              .toList(),
+                        );
+                      }),
+                      if (i < element.list!.children!.length - 1)
+                        const TextSpan(text: '\n'),
+                    ],
+                  );
+                }).toList(),
+              ),
+            );
+          case 5 when (element.list?.items?.isNotEmpty == true):
+            return Text.rich(
+              TextSpan(
+                children: element.list!.items!.mapIndexed((i, entry) {
+                  return TextSpan(
+                    children: [
+                      const WidgetSpan(
+                        child: Icon(MdiIcons.circleMedium),
+                        alignment: .middle,
+                      ),
+                      ...entry.nodes!.map((item) {
+                        if (item.word != null) {
+                          return _getSpan(
+                            item.word,
+                            surfaceLuminance: getSurfaceLuminance,
+                          );
+                        }
+                        if (item.rich case Rich(
+                          :final text,
+                          :final jumpUrl,
+                        )) {
+                          final hasUrl = jumpUrl != null && jumpUrl.isNotEmpty;
+                          return TextSpan(
+                            text: '${hasUrl ? '\u{1F517}' : ''}$text',
+                            recognizer: hasUrl
+                                ? (NoDeadlineTapGestureRecognizer()
+                                    ..onTap = () =>
+                                        PiliScheme.routePushFromUrl(jumpUrl))
+                                : null,
+                            style: hasUrl
+                                ? TextStyle(color: colorScheme.primary)
+                                : null,
+                          );
+                        }
+                        return const TextSpan();
+                      }),
+                      if (i < element.list!.items!.length - 1)
+                        const TextSpan(text: '\n'),
+                    ],
+                  );
+                }).toList(),
+              ),
+            );
+          case 6:
+            final type = element.linkCard!.card!.type;
+            Widget child;
+            switch (type) {
+              case 'LINK_CARD_TYPE_UGC':
+                final ugc = element.linkCard!.card!.ugc!;
+                child = Row(
+                  spacing: 10,
+                  children: [
+                    NetworkImgLayer(
+                      width: 104,
+                      height: 65,
+                      src: ugc.cover,
+                      borderRadius: const .all(.circular(6)),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: .start,
+                        children: [
+                          Text(ugc.title!),
+                          Text(
+                            ugc.descSecond!,
+                            maxLines: 2,
+                            overflow: .ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colorScheme.outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              case 'LINK_CARD_TYPE_ITEM_NULL':
+                final itemNull = element.linkCard?.card?.itemNull;
+                child = Text(
+                  ' ${itemNull?.text}: ${element.linkCard?.card?.oid}',
+                );
+              case 'LINK_CARD_TYPE_COMMON':
+                final common = element.linkCard!.card!.common!;
+                child = Row(
+                  spacing: 10,
+                  children: [
+                    NetworkImgLayer(
+                      width: 104,
+                      height: 65,
+                      src: common.cover,
+                      borderRadius: const .all(.circular(6)),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: .start,
+                        children: [
+                          Text(common.title!),
+                          if (common.desc1 != null)
                             Text(
-                              ugc.descSecond!,
+                              common.desc1!,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: colorScheme.outline,
+                              ),
+                            ),
+                          if (common.desc2 != null)
+                            Text(
+                              common.desc2!,
                               maxLines: 2,
                               overflow: .ellipsis,
                               style: TextStyle(
@@ -386,147 +478,292 @@ class OpusContent extends StatelessWidget {
                                 color: colorScheme.outline,
                               ),
                             ),
-                          ],
-                        ),
+                        ],
                       ),
-                    ],
-                  );
-                case 'LINK_CARD_TYPE_ITEM_NULL':
-                  final itemNull = element.linkCard?.card?.itemNull;
-                  child = Text(
-                    ' ${itemNull?.text}: ${element.linkCard?.card?.oid}',
-                  );
-                case 'LINK_CARD_TYPE_COMMON':
-                  final common = element.linkCard!.card!.common!;
-                  child = Row(
-                    spacing: 10,
-                    children: [
-                      NetworkImgLayer(
-                        width: 104,
-                        height: 65,
-                        src: common.cover,
-                        borderRadius: const .all(.circular(6)),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: .start,
-                          children: [
-                            Text(common.title!),
-                            if (common.desc1 != null)
-                              Text(
-                                common.desc1!,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colorScheme.outline,
-                                ),
-                              ),
-                            if (common.desc2 != null)
-                              Text(
-                                common.desc2!,
-                                maxLines: 2,
-                                overflow: .ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colorScheme.outline,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                case 'LINK_CARD_TYPE_LIVE':
-                  final live = element.linkCard!.card!.live!;
-                  child = Row(
-                    spacing: 10,
-                    children: [
-                      NetworkImgLayer(
-                        width: 104,
-                        height: 65,
-                        src: live.cover,
-                        borderRadius: const .all(.circular(6)),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: .start,
-                          children: [
-                            Text(live.title!),
-                            if (live.descFirst != null)
-                              Text(
-                                live.descFirst!,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colorScheme.outline,
-                                ),
-                              ),
-                            if (live.descSecond != null)
-                              Text(
-                                live.descSecond!,
-                                maxLines: 2,
-                                overflow: .ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colorScheme.outline,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                case 'LINK_CARD_TYPE_OPUS':
-                  final opus = element.linkCard!.card!.opus!;
-                  child = Row(
-                    spacing: 10,
-                    children: [
-                      NetworkImgLayer(
-                        width: 104,
-                        height: 65,
-                        src: opus.cover,
-                        borderRadius: const .all(.circular(6)),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: .start,
-                          children: [
-                            Text(opus.title!),
+                    ),
+                  ],
+                );
+              case 'LINK_CARD_TYPE_LIVE':
+                final live = element.linkCard!.card!.live!;
+                child = Row(
+                  spacing: 10,
+                  children: [
+                    NetworkImgLayer(
+                      width: 104,
+                      height: 65,
+                      src: live.cover,
+                      borderRadius: const .all(.circular(6)),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: .start,
+                        children: [
+                          Text(live.title!),
+                          if (live.descFirst != null)
                             Text(
-                              '${opus.authorName} · ${opus.statView ?? 0}阅读',
+                              live.descFirst!,
                               style: TextStyle(
                                 fontSize: 13,
                                 color: colorScheme.outline,
                               ),
                             ),
+                          if (live.descSecond != null)
+                            Text(
+                              live.descSecond!,
+                              maxLines: 2,
+                              overflow: .ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: colorScheme.outline,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              case 'LINK_CARD_TYPE_OPUS':
+                final opus = element.linkCard!.card!.opus!;
+                child = Row(
+                  spacing: 10,
+                  children: [
+                    NetworkImgLayer(
+                      width: 104,
+                      height: 65,
+                      src: opus.cover,
+                      borderRadius: const .all(.circular(6)),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: .start,
+                        children: [
+                          Text(opus.title!),
+                          Text(
+                            '${opus.authorName} · ${opus.statView ?? 0}阅读',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colorScheme.outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              case 'LINK_CARD_TYPE_VOTE':
+                final vote = element.linkCard!.card!.vote!;
+                child = Row(
+                  spacing: 10,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: const .all(.circular(6)),
+                        color: colorScheme.secondaryContainer,
+                      ),
+                      width: 70,
+                      height: 50,
+                      alignment: .center,
+                      child: Icon(
+                        Icons.bar_chart_rounded,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: .start,
+                        children: [
+                          Text(vote.desc!),
+                          Text(
+                            '${vote.joinNum}人参与',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colorScheme.outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              case 'LINK_CARD_TYPE_MUSIC':
+                final music = element.linkCard!.card!.music!;
+                child = Row(
+                  spacing: 10,
+                  children: [
+                    NetworkImgLayer(
+                      width: 104,
+                      height: 65,
+                      src: music.cover,
+                      borderRadius: const .all(.circular(6)),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: .start,
+                        children: [
+                          Text(music.title!),
+                          if (music.label != null)
+                            Text(
+                              music.label!,
+                              maxLines: 2,
+                              overflow: .ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: colorScheme.outline,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              case 'LINK_CARD_TYPE_GOODS':
+                final goods = element.linkCard!.card!.goods!;
+                child = Column(
+                  children: goods.items!.map((e) {
+                    return GestureDetector(
+                      onTap: () {
+                        if (e.jumpUrl?.isNotEmpty == true) {
+                          PiliScheme.routePushFromUrl(e.jumpUrl!);
+                        }
+                      },
+                      child: Row(
+                        spacing: 10,
+                        children: [
+                          NetworkImgLayer(
+                            width: 104,
+                            height: 65,
+                            src: e.cover,
+                            borderRadius: const .all(.circular(6)),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: .start,
+                              children: [
+                                Text(e.name!),
+                                if (e.brief?.isNotEmpty == true)
+                                  Text(
+                                    e.brief!,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: colorScheme.outline,
+                                    ),
+                                  ),
+                                if (e.price?.isNotEmpty == true)
+                                  Text(
+                                    '${e.price!}起',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: colorScheme.outline,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                );
+              case "LINK_CARD_TYPE_EVA3_VIDEO":
+                final info = element.linkCard!.card!.eva3Video!.info!;
+                Widget cover = NetworkImgLayer(
+                  width: 104,
+                  height: 65,
+                  src: info.cover,
+                  borderRadius: const .all(.circular(6)),
+                );
+                if (info.videoTs?.durationText != null) {
+                  cover = Stack(
+                    clipBehavior: .none,
+                    children: [
+                      cover,
+                      PBadge(
+                        right: 4,
+                        bottom: 4,
+                        type: .gray,
+                        text: info.videoTs?.durationText,
+                      ),
+                    ],
+                  );
+                }
+                child = SizedBox(
+                  height: 65,
+                  child: Row(
+                    spacing: 10,
+                    children: [
+                      cover,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: .start,
+                          mainAxisAlignment: .spaceBetween,
+                          children: [
+                            Text(
+                              info.title!,
+                              maxLines: 2,
+                              overflow: .ellipsis,
+                            ),
+                            if (info.statInfos case final statInfos?
+                                when statInfos.isNotEmpty)
+                              Text(
+                                statInfos.map((e) => e.text).join('    '),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: colorScheme.outline,
+                                ),
+                              ),
                           ],
                         ),
                       ),
                     ],
-                  );
-                case 'LINK_CARD_TYPE_VOTE':
-                  final vote = element.linkCard!.card!.vote!;
-                  child = Row(
+                  ),
+                );
+              case "LINK_CARD_TYPE_EVA3_OPUS":
+                final info = element.linkCard!.card!.eva3Opus!.info!;
+                final cover = info.pics?.firstOrNull?.src;
+                child = SizedBox(
+                  height: 65,
+                  child: Row(
                     spacing: 10,
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
+                      if (cover != null && cover.isNotEmpty)
+                        NetworkImgLayer(
+                          width: 104,
+                          height: 65,
+                          src: cover,
                           borderRadius: const .all(.circular(6)),
-                          color: colorScheme.secondaryContainer,
                         ),
-                        width: 70,
-                        height: 50,
-                        alignment: .center,
-                        child: Icon(
-                          Icons.bar_chart_rounded,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: .start,
+                          mainAxisAlignment: .spaceBetween,
                           children: [
-                            Text(vote.desc!),
                             Text(
-                              '${vote.joinNum}人参与',
+                              info.title!,
+                              maxLines: 2,
+                              overflow: .ellipsis,
+                            ),
+                            Text.rich(
+                              TextSpan(
+                                children:
+                                    [
+                                          if (info.badge != null)
+                                            TextSpan(text: info.badge),
+                                          if (info.authorName != null)
+                                            TextSpan(
+                                              text: 'UP: ${info.authorName!}',
+                                            ),
+                                          if (info.view != null)
+                                            TextSpan(text: info.view!),
+                                          if (info.reply != null)
+                                            TextSpan(text: info.reply!),
+                                        ]
+                                        .expand((e) sync* {
+                                          yield const TextSpan(text: ' ');
+                                          yield e;
+                                        })
+                                        .skip(1)
+                                        .toList(),
+                              ),
                               style: TextStyle(
                                 fontSize: 13,
                                 color: colorScheme.outline,
@@ -536,238 +773,173 @@ class OpusContent extends StatelessWidget {
                         ),
                       ),
                     ],
-                  );
-                case 'LINK_CARD_TYPE_MUSIC':
-                  final music = element.linkCard!.card!.music!;
-                  child = Row(
-                    spacing: 10,
-                    children: [
-                      NetworkImgLayer(
-                        width: 104,
-                        height: 65,
-                        src: music.cover,
-                        borderRadius: const .all(.circular(6)),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: .start,
-                          children: [
-                            Text(music.title!),
-                            if (music.label != null)
-                              Text(
-                                music.label!,
-                                maxLines: 2,
-                                overflow: .ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colorScheme.outline,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                case 'LINK_CARD_TYPE_GOODS':
-                  final goods = element.linkCard!.card!.goods!;
-                  child = Column(
-                    children: goods.items!.map((e) {
-                      return GestureDetector(
-                        onTap: () {
-                          if (e.jumpUrl?.isNotEmpty == true) {
-                            PiliScheme.routePushFromUrl(e.jumpUrl!);
+                  ),
+                );
+              default:
+                throw UnimplementedError(
+                  '\nparaType: ${element.paraType},\ncard type: $type',
+                );
+            }
+            return Material(
+              shape: const RoundedRectangleBorder(
+                borderRadius: .all(.circular(8)),
+              ),
+              color: colorScheme.onInverseSurface,
+              child: InkWell(
+                onTap: type == 'LINK_CARD_TYPE_GOODS'
+                    ? null
+                    : () {
+                        try {
+                          final card = element.linkCard!.card!;
+                          if (type == 'LINK_CARD_TYPE_VOTE') {
+                            showVoteDialog(
+                              context,
+                              card.vote?.voteId ?? int.parse(card.oid!),
+                            );
+                            return;
                           }
-                        },
-                        child: Row(
-                          spacing: 10,
-                          children: [
-                            NetworkImgLayer(
-                              width: 104,
-                              height: 65,
-                              src: e.cover,
-                              borderRadius: const .all(.circular(6)),
-                            ),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: .start,
+                          if (type == 'LINK_CARD_TYPE_ITEM_NULL') {
+                            showDialog(
+                              context: context,
+                              builder: (context) => SimpleDialog(
+                                clipBehavior: .hardEdge,
+                                contentPadding: const .symmetric(
+                                  vertical: 12,
+                                ),
                                 children: [
-                                  Text(e.name!),
-                                  if (e.brief?.isNotEmpty == true)
-                                    Text(
-                                      e.brief!,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: colorScheme.outline,
-                                      ),
-                                    ),
-                                  if (e.price?.isNotEmpty == true)
-                                    Text(
-                                      '${e.price!}起',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: colorScheme.outline,
-                                      ),
-                                    ),
+                                  DialogOption(
+                                    onPressed: () {
+                                      Get.back();
+                                      PiliScheme.videoPush(
+                                        int.parse(card.oid!),
+                                        null,
+                                      );
+                                    },
+                                    child: const Text('视频'),
+                                  ),
+                                  DialogOption(
+                                    onPressed: () {
+                                      Get.back();
+                                      PageUtils.pushDynFromId(id: card.oid!);
+                                    },
+                                    child: const Text('动态/专栏'),
+                                  ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  );
-                default:
-                  throw UnimplementedError(
-                    '\nparaType: ${element.paraType},\ncard type: $type',
-                  );
-              }
-              return Material(
-                shape: const RoundedRectangleBorder(
-                  borderRadius: .all(.circular(8)),
+                            );
+                            return;
+                          }
+                          final url = switch (type) {
+                            'LINK_CARD_TYPE_UGC' => card.ugc!.jumpUrl,
+                            'LINK_CARD_TYPE_COMMON' => card.common!.jumpUrl,
+                            'LINK_CARD_TYPE_LIVE' => card.live!.jumpUrl,
+                            'LINK_CARD_TYPE_OPUS' => card.opus!.jumpUrl,
+                            'LINK_CARD_TYPE_MUSIC' => card.music!.jumpUrl,
+                            'LINK_CARD_TYPE_EVA3_VIDEO' =>
+                              card.eva3Video!.info!.jumpUrl,
+                            'LINK_CARD_TYPE_EVA3_OPUS' =>
+                              card.eva3Opus!.info!.jumpUrl,
+                            _ => null,
+                          };
+                          if (url != null && url.isNotEmpty) {
+                            PiliScheme.routePushFromUrl(url);
+                          }
+                        } catch (_) {}
+                      },
+                borderRadius: const .all(.circular(8)),
+                child: Padding(
+                  padding: const .all(8),
+                  child: child,
                 ),
+              ),
+            );
+          case 7 when (element.code != null):
+            final renderer = TextSpanRenderer(
+              null,
+              isDarkMode ? githubDarkTheme : githubTheme,
+            );
+            highlight
+                .highlightAuto(
+                  element.code!.content!,
+                  element.code!.lang == 'language-clike'
+                      ? const ['c', 'java']
+                      : [
+                          element.code!.lang!
+                              .replaceAll('language-', '')
+                              .replaceAll('like', ''),
+                        ],
+                )
+                .render(renderer);
+            return Container(
+              padding: const .all(12),
+              decoration: BoxDecoration(
+                borderRadius: const .all(.circular(8)),
                 color: colorScheme.onInverseSurface,
-                child: InkWell(
-                  onTap: type == 'LINK_CARD_TYPE_GOODS'
-                      ? null
-                      : () {
-                          try {
-                            final card = element.linkCard!.card!;
-                            if (type == 'LINK_CARD_TYPE_VOTE') {
-                              showVoteDialog(
-                                context,
-                                card.vote?.voteId ?? int.parse(card.oid!),
-                              );
-                              return;
-                            }
-                            if (type == 'LINK_CARD_TYPE_ITEM_NULL') {
-                              showDialog(
-                                context: context,
-                                builder: (context) => SimpleDialog(
-                                  clipBehavior: .hardEdge,
-                                  contentPadding: const .symmetric(
-                                    vertical: 12,
-                                  ),
-                                  children: [
-                                    DialogOption(
-                                      onPressed: () {
-                                        Get.back();
-                                        PiliScheme.videoPush(
-                                          int.parse(card.oid!),
-                                          null,
-                                        );
-                                      },
-                                      child: const Text('视频'),
-                                    ),
-                                    DialogOption(
-                                      onPressed: () {
-                                        Get.back();
-                                        PageUtils.pushDynFromId(id: card.oid!);
-                                      },
-                                      child: const Text('动态/专栏'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              return;
-                            }
-                            final url = switch (type) {
-                              'LINK_CARD_TYPE_UGC' => card.ugc!.jumpUrl,
-                              'LINK_CARD_TYPE_COMMON' => card.common!.jumpUrl,
-                              'LINK_CARD_TYPE_LIVE' => card.live!.jumpUrl,
-                              'LINK_CARD_TYPE_OPUS' => card.opus!.jumpUrl,
-                              'LINK_CARD_TYPE_MUSIC' => card.music!.jumpUrl,
-                              _ => null,
-                            };
-                            if (url != null && url.isNotEmpty) {
-                              PiliScheme.routePushFromUrl(url);
-                            }
-                          } catch (_) {}
-                        },
-                  borderRadius: const .all(.circular(8)),
-                  child: Padding(
-                    padding: const .all(8),
-                    child: child,
-                  ),
-                ),
-              );
-            case 7 when (element.code != null):
-              final renderer = TextSpanRenderer(
-                null,
-                isDarkMode ? githubDarkTheme : githubTheme,
-              );
-              highlight
-                  .highlightAuto(
-                    element.code!.content!,
-                    element.code!.lang == 'language-clike'
-                        ? const ['c', 'java']
-                        : [
-                            element.code!.lang!
-                                .replaceAll('language-', '')
-                                .replaceAll('like', ''),
-                          ],
-                  )
-                  .render(renderer);
-              return Container(
-                padding: const .all(12),
-                decoration: BoxDecoration(
-                  borderRadius: const .all(.circular(8)),
-                  color: colorScheme.onInverseSurface,
-                ),
-                width: .infinity,
-                child: Text.rich(renderer.span!),
-              );
-            case 8 when (element.heading?.nodes?.isNotEmpty == true):
+              ),
+              width: .infinity,
+              child: Text.rich(renderer.span!),
+            );
+          case 8 when (element.heading?.nodes?.isNotEmpty == true):
+            return Text.rich(
+              textAlign: element.align == 1 ? TextAlign.center : null,
+              TextSpan(
+                children: element.heading!.nodes!
+                    .map(
+                      (e) => _node2Widget(
+                        item: e,
+                        opusId: opusId,
+                        colorScheme: colorScheme,
+                        surfaceLuminance: getSurfaceLuminance,
+                      ),
+                    )
+                    .toList(),
+              ),
+            );
+          default:
+            if (kDebugMode) debugPrint('unknown type ${element.paraType}');
+            if (element.text?.nodes?.isNotEmpty == true) {
               return Text.rich(
                 textAlign: element.align == 1 ? TextAlign.center : null,
                 TextSpan(
-                  children: element.heading!.nodes!
-                      .map(
-                        (e) => _node2Widget(
-                          item: e,
-                          opusId: opusId,
-                          colorScheme: colorScheme,
+                  children: element.text!.nodes!
+                      .map<TextSpan>(
+                        (item) => _getSpan(
+                          item.word,
                           surfaceLuminance: getSurfaceLuminance,
                         ),
                       )
                       .toList(),
                 ),
               );
-            default:
-              if (kDebugMode) debugPrint('unknown type ${element.paraType}');
-              if (element.text?.nodes?.isNotEmpty == true) {
-                return Text.rich(
-                  textAlign: element.align == 1 ? TextAlign.center : null,
-                  TextSpan(
-                    children: element.text!.nodes!
-                        .map<TextSpan>(
-                          (item) => _getSpan(
-                            item.word,
-                            surfaceLuminance: getSurfaceLuminance,
-                          ),
-                        )
-                        .toList(),
-                  ),
-                );
-              }
+            }
 
-              return Text(
-                '不支持的类型 (${element.paraType})',
-                style: const TextStyle(
-                  fontWeight: .bold,
-                  color: Colors.red,
-                ),
-              );
-          }
-        } catch (e, s) {
-          return Text(
-            '错误的类型 $e${kDebugMode ? '\n$s' : ''}',
-            style: const TextStyle(
-              fontWeight: .bold,
-              color: Colors.red,
-            ),
-          );
+            return Text(
+              '不支持的类型 (${element.paraType})',
+              style: const TextStyle(
+                fontWeight: .bold,
+                color: Colors.red,
+              ),
+            );
         }
+      } catch (e, s) {
+        return Text(
+          '错误的类型 $e${kDebugMode ? '\n$s' : ''}',
+          style: const TextStyle(
+            fontWeight: .bold,
+            color: Colors.red,
+          ),
+        );
+      }
     };
+
+    if (reverse) {
+      return SliverListExt.separated(
+        reverse: true,
+        itemCount: opus.length,
+        itemBuilder: itemBuilder,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+      );
+    }
 
     return SuperSliverList.builder(
       listController: listController,
