@@ -1,12 +1,13 @@
 import 'dart:math';
 
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/scaffold/mini_scaffold.dart';
 import 'package:PiliPlus/common/widgets/scaffold/simple_scaffold.dart';
 import 'package:PiliPlus/common/widgets/sliver/sliver_to_box_adapter.dart';
-import 'package:PiliPlus/models/dynamics/result.dart' show DynamicStat;
+import 'package:PiliPlus/models/dynamics/result.dart' show DynamicStat, Tribee;
 import 'package:PiliPlus/pages/article/controller.dart';
 import 'package:PiliPlus/pages/article/widgets/article_ops.dart';
 import 'package:PiliPlus/pages/article/widgets/cover_gallery.dart';
@@ -17,6 +18,7 @@ import 'package:PiliPlus/pages/article/widgets/sliver_list_ext.dart';
 import 'package:PiliPlus/pages/article/widgets/sliver_to_box_adapter.dart';
 import 'package:PiliPlus/pages/common/dyn/common_dyn_page.dart';
 import 'package:PiliPlus/pages/dynamics_repost/view.dart';
+import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
@@ -180,6 +182,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage>
       () {
         if (controller.isLoaded.value) {
           final Widget content;
+          late final modules = controller.opusData?.modules;
           if (controller.opus != null) {
             // if (kDebugMode) debugPrint('json page');
             content = OpusContent(
@@ -190,11 +193,14 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage>
               listController: controller.listController,
               reverse: reverse,
             );
-          } else if (controller.opusData?.modules.moduleBlocked
-              case final moduleBlocked?) {
+          } else if (modules?.moduleBlocked case final moduleBlocked?) {
             // if (kDebugMode) debugPrint('moduleBlocked');
             content = SliverToBoxAdapter(
-              child: moduleBlockedItem(context, theme, moduleBlocked),
+              child: moduleBlockedItem(
+                context,
+                theme.colorScheme,
+                moduleBlocked,
+              ),
             );
           } else if (controller.articleData?.content != null) {
             if (controller.articleData?.type == 3) {
@@ -236,6 +242,8 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage>
           final opusCoverPics = controller.opusCoverPics;
           final readCoverUrls = controller.readCoverUrls;
           final collection = controller.collection;
+          final isOpus = controller.type != 'read';
+
           return SliverMainAxisGroup(
             slivers: [
               if (opusCoverPics != null || readCoverUrls != null)
@@ -257,10 +265,11 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage>
                   ),
                 ),
               SliverToBoxAdapter(child: _buildAuthor()),
+              if (isOpus) ...?modules?.moduleTribee?.items?.map(_buildTribee),
               if (collection != null)
                 SliverToBoxAdapter(
                   child: SelectionContainer.disabled(
-                    child: opusCollection(theme, collection),
+                    child: opusCollection(theme.colorScheme, collection),
                   ),
                 ),
               content,
@@ -272,6 +281,53 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage>
       },
     ),
   );
+
+  Widget _buildTribee(Tribee tribee) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const .only(bottom: 8),
+        child: Material(
+          borderRadius: Style.borderRadius6,
+          color: colorScheme.onInverseSurface,
+          child: InkWell(
+            borderRadius: Style.borderRadius6,
+            onTap: tribee.jumpUrl == null
+                ? null
+                : () => PiliScheme.routePushFromUrl(tribee.jumpUrl!),
+            child: Padding(
+              padding: const .symmetric(horizontal: 10, vertical: 8),
+              child: Row(
+                children: [
+                  NetworkImgLayer(
+                    src: tribee.faceUrl,
+                    width: 30,
+                    height: 30,
+                    borderRadius: Style.borderRadius6,
+                  ),
+                  const SizedBox(width: 10),
+                  Text('${tribee.name}${tribee.suffix ?? ''}'),
+                  SizedBox(
+                    height: 20,
+                    child: VerticalDivider(
+                      width: 20,
+                      color: colorScheme.outline.withValues(alpha: .4),
+                    ),
+                  ),
+                  Text(
+                    '${tribee.dynCountText ?? ''} · ${tribee.latestTimeText ?? ''}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   PreferredSizeWidget _buildAppBar() => AppBar(
     title: Obx(() {
