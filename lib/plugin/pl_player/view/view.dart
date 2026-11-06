@@ -337,16 +337,16 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     // Keep playing in the PiP window.
     if (Platform.isIOS && IOSPipHelper.isActive) return;
     if (!plPlayerController.continuePlayInBackground.value) {
-      late final player = plPlayerController.videoPlayerController;
       if (const <AppLifecycleState>[.paused, .detached].contains(state)) {
+        final player = plPlayerController.videoPlayerController;
         if (player != null && player.state.playing) {
           _pauseDueToPauseUponEnteringBackgroundMode = true;
-          player.pause();
+          plPlayerController.pause();
         }
       } else {
         if (_pauseDueToPauseUponEnteringBackgroundMode) {
           _pauseDueToPauseUponEnteringBackgroundMode = false;
-          player?.play();
+          plPlayerController.play();
         }
       }
     }
@@ -1444,7 +1444,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 child: Obx(
                   () => AnimatedOpacity(
                     curve: Curves.easeInOut,
-                    opacity: plPlayerController.isSeeking.value ? 1.0 : 0.0,
+                    opacity:
+                        plPlayerController.isSeeking.value &&
+                            plPlayerController.hoverDx == null
+                        ? 1.0
+                        : 0.0,
                     duration: const Duration(milliseconds: 150),
                     child: Container(
                       decoration: const BoxDecoration(
@@ -1693,6 +1697,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                         BottomControl(
                           maxWidth: maxWidth,
                           isFullScreen: isFullScreen,
+                          animCtr: _animationController,
                           controller: plPlayerController,
                           videoDetailController: videoDetailController,
                           buildBottomControl: () => buildBottomControl(
