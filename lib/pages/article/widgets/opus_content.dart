@@ -13,7 +13,7 @@ import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/models/dynamics/article_content_model.dart'
     show ArticleContentModel, Rich, Style, Word, Node;
 import 'package:PiliPlus/models/dynamics/result.dart';
-import 'package:PiliPlus/pages/article/widgets/sliver_list_ext.dart';
+import 'package:PiliPlus/common/widgets/sliver/sliver_reverse.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/vote.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -495,13 +495,14 @@ class OpusContent extends StatelessWidget {
                 }).toList(),
               ),
             );
-          case 6:
+          case 6 when element.linkCard?.card?.type != null:
             double? height = 65;
-            final type = element.linkCard!.card!.type;
+            final card = element.linkCard!.card!;
+            final type = card.type;
             Widget child;
             switch (type) {
               case 'LINK_CARD_TYPE_UGC':
-                final ugc = element.linkCard!.card!.ugc!;
+                final ugc = card.ugc!;
                 child = Row(
                   spacing: 10,
                   children: [
@@ -538,7 +539,7 @@ class OpusContent extends StatelessWidget {
                 );
               case 'LINK_CARD_TYPE_ITEM_NULL':
                 height = null;
-                final itemNull = element.linkCard?.card?.itemNull;
+                final itemNull = card.itemNull!;
                 child = Text.rich(
                   TextSpan(
                     children: [
@@ -551,14 +552,13 @@ class OpusContent extends StatelessWidget {
                         ),
                       ),
                       TextSpan(
-                        text:
-                            ' ${itemNull?.text}(${element.linkCard?.card?.oid})',
+                        text: ' ${itemNull.text}(${card.oid})',
                       ),
                     ],
                   ),
                 );
               case 'LINK_CARD_TYPE_COMMON':
-                final common = element.linkCard!.card!.common!;
+                final common = card.common!;
                 child = Row(
                   spacing: 10,
                   children: [
@@ -605,7 +605,7 @@ class OpusContent extends StatelessWidget {
                   ],
                 );
               case 'LINK_CARD_TYPE_LIVE':
-                final live = element.linkCard!.card!.live!;
+                final live = card.live!;
                 final liveState = live.liveState == 1;
                 child = Row(
                   spacing: 10,
@@ -664,7 +664,7 @@ class OpusContent extends StatelessWidget {
                   ],
                 );
               case 'LINK_CARD_TYPE_OPUS':
-                final opus = element.linkCard!.card!.opus!;
+                final opus = card.opus!;
                 child = Row(
                   spacing: 10,
                   children: [
@@ -700,7 +700,7 @@ class OpusContent extends StatelessWidget {
                   ],
                 );
               case 'LINK_CARD_TYPE_VOTE':
-                final vote = element.linkCard!.card!.vote!;
+                final vote = card.vote!;
                 child = Row(
                   spacing: 10,
                   children: [
@@ -743,7 +743,7 @@ class OpusContent extends StatelessWidget {
                   ],
                 );
               case 'LINK_CARD_TYPE_MUSIC':
-                final music = element.linkCard!.card!.music!;
+                final music = card.music!;
                 child = Row(
                   spacing: 10,
                   children: [
@@ -781,7 +781,7 @@ class OpusContent extends StatelessWidget {
                 );
               case 'LINK_CARD_TYPE_GOODS':
                 height = null;
-                final goods = element.linkCard!.card!.goods!;
+                final goods = card.goods!;
                 child = Column(
                   children: goods.items!.map((e) {
                     Widget child = SizedBox(
@@ -842,7 +842,7 @@ class OpusContent extends StatelessWidget {
                   }).toList(),
                 );
               case "LINK_CARD_TYPE_EVA3_VIDEO":
-                final info = element.linkCard!.card!.eva3Video!.info!;
+                final info = card.eva3Video!.info!;
                 Widget cover = NetworkImgLayer(
                   width: 104,
                   height: 65,
@@ -895,7 +895,7 @@ class OpusContent extends StatelessWidget {
                   ],
                 );
               case "LINK_CARD_TYPE_EVA3_OPUS":
-                final info = element.linkCard!.card!.eva3Opus!.info!;
+                final info = card.eva3Opus!.info!;
                 final cover = info.pics?.firstOrNull?.src;
                 child = Row(
                   spacing: 10,
@@ -964,7 +964,7 @@ class OpusContent extends StatelessWidget {
                 );
               case "LINK_CARD_TYPE_EVA3_USER":
                 height = null;
-                final info = element.linkCard!.card!.eva3User!.info!;
+                final info = card.eva3User!.info!;
                 final user = info.user!;
                 child = Row(
                   spacing: 10,
@@ -1015,7 +1015,7 @@ class OpusContent extends StatelessWidget {
                   ],
                 );
               case "LINK_CARD_TYPE_EVA3_TOY":
-                final info = element.linkCard!.card!.eva3Toy!.info!;
+                final info = card.eva3Toy!.info!;
                 final user = info.up!;
                 child = Row(
                   spacing: 10,
@@ -1060,7 +1060,7 @@ class OpusContent extends StatelessWidget {
                 );
               case "LINK_CARD_TYPE_EVA3_VOTE":
                 height = null;
-                final info = element.linkCard!.card!.eva3Vote!.info!;
+                final info = card.eva3Vote!.info!;
                 child = Row(
                   spacing: 10,
                   children: [
@@ -1101,7 +1101,7 @@ class OpusContent extends StatelessWidget {
                 );
               case "LINK_CARD_TYPE_EVA3_COMMENT":
                 height = null;
-                final comment = element.linkCard!.card!.eva3Comment!.info!;
+                final comment = card.eva3Comment!.info!;
                 child = Text(
                   '${comment.linkShowText}:\n${comment.source!.desc}',
                 );
@@ -1119,8 +1119,6 @@ class OpusContent extends StatelessWidget {
               child = InkWell(
                 onTap: () {
                   try {
-                    final card = element.linkCard!.card!;
-
                     switch (type) {
                       case 'LINK_CARD_TYPE_VOTE':
                         showVoteDialog(
@@ -1130,12 +1128,11 @@ class OpusContent extends StatelessWidget {
                         return;
                       case 'LINK_CARD_TYPE_EVA3_USER':
                         Get.toNamed(
-                          '/member?mid=${element.linkCard!.card!.eva3User!.info!.user!.mid}',
+                          '/member?mid=${card.eva3User!.info!.user!.mid}',
                         );
                         return;
                       case 'LINK_CARD_TYPE_EVA3_VOTE':
-                        final id =
-                            element.linkCard!.card!.eva3Vote!.info!.voteId!;
+                        final id = card.eva3Vote!.info!.voteId!;
                         showVoteDialog(context, .parse(id));
                         return;
                     }
@@ -1249,7 +1246,7 @@ class OpusContent extends StatelessWidget {
     }
 
     if (reverse) {
-      return SliverListExt.separated(
+      return SliverListReverse.separated(
         reverse: true,
         itemCount: opus.length,
         itemBuilder: itemBuilder,

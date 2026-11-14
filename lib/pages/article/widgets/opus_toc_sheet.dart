@@ -4,7 +4,7 @@ import 'package:PiliPlus/models/dynamics/article_content_model.dart'
 import 'package:PiliPlus/models/dynamics/result.dart' show ModuleCollection;
 import 'package:PiliPlus/models_new/article/article_list/article.dart';
 import 'package:PiliPlus/pages/article/controller.dart';
-import 'package:get/get.dart';
+import 'package:PiliPlus/pages/article/view.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// 官方风格的目录弹窗：双 Tab(目录 / 文集)
@@ -200,12 +200,9 @@ class _OpusTocSheetState extends State<_OpusTocSheet>
                     onTap: () {
                       Navigator.of(context).pop();
                       final dynIdStr = item.dynIdStr;
-                      Get.toNamed(
-                        '/articlePage',
-                        parameters: {
-                          'id': dynIdStr ?? item.id!.toString(),
-                          'type': dynIdStr != null ? 'opus' : 'read',
-                        },
+                      ArticlePage.toArticlePage(
+                        id: dynIdStr ?? item.id!.toString(),
+                        type: dynIdStr != null ? .opus : .read,
                       );
                     },
                   );
